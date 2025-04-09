@@ -74,13 +74,13 @@ export function mcpProxy({ transportToClient, transportToServer }: { transportTo
  */
 export async function connectToRemoteServer(
   serverUrl: string,
-  authProvider: OAuthClientProvider,
+  authProvider: OAuthClientProvider | undefined,
   waitForAuthCode: () => Promise<string>,
   skipBrowserAuth: boolean = false,
 ): Promise<SSEClientTransport> {
   log(`[${pid}] Connecting to remote server: ${serverUrl}`)
   const url = new URL(serverUrl)
-  const transport = new SSEClientTransport(url, { authProvider })
+  const transport = new SSEClientTransport(url, {authProvider: authProvider})
 
   try {
     await transport.start()
@@ -308,6 +308,28 @@ export function setupSignalHandlers(cleanup: () => Promise<void>) {
     log('\nShutting down...')
     await cleanup()
     process.exit(0)
+  })
+  
+  process.on('SIGTERM', async () => {
+    log('\nShutting down...')
+    await cleanup()
+    process.exit(0)
+  })
+  
+  process.on('uncaughtException', async (err) => {
+    log('\nUncaught exception:', err)
+    await cleanup()
+    process.exit(1)
+  })
+
+  process.on('unhandledRejection', async (reason) => {
+    log('\nUnhandled rejection:', reason)
+    await cleanup()
+    process.exit(1)
+  })
+  
+  process.on('exit', async () => {
+    await cleanup()
   })
 
   // Keep the process alive

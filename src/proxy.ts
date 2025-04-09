@@ -21,23 +21,24 @@ import { coordinateAuth } from './lib/coordination'
 /**
  * Main function to run the proxy
  */
-async function runProxy(serverUrl: string, callbackPort: number, clean: boolean = false) {
+export async function runProxy(serverUrl: string, callbackPort: number, clean: boolean = false) {
   // Set up event emitter for auth flow
   const events = new EventEmitter()
 
   // Get the server URL hash for lockfile operations
   const serverUrlHash = getServerUrlHash(serverUrl)
 
-  // Coordinate authentication with other instances
-  const { server, waitForAuthCode, skipBrowserAuth } = await coordinateAuth(serverUrlHash, callbackPort, events)
-
-  // Create the OAuth client provider
-  const authProvider = new NodeOAuthClientProvider({
-    serverUrl,
-    callbackPort,
-    clientName: 'MCP CLI Proxy',
-    clean,
-  })
+  // // Coordinate authentication with other instances
+  // const { server, waitForAuthCode, skipBrowserAuth } = await coordinateAuth(serverUrlHash, callbackPort, events)
+  //
+  // // Create the OAuth client provider
+  // const authProvider = new NodeOAuthClientProvider({
+  //   serverUrl,
+  //   callbackPort,
+  //   clientName: 'MCP CLI Proxy',
+  //   clean,
+  // })
+  const skipBrowserAuth = false;
 
   // If auth was completed by another instance, just log that we'll use the auth from disk
   if (skipBrowserAuth) {
@@ -50,9 +51,13 @@ async function runProxy(serverUrl: string, callbackPort: number, clean: boolean 
   // Create the STDIO transport for local connections
   const localTransport = new StdioServerTransport()
 
+  const waitForAuthCode = async () => {
+    return new Promise<string>(() => {})
+  }
+
   try {
     // Connect to remote server with authentication
-    const remoteTransport = await connectToRemoteServer(serverUrl, authProvider, waitForAuthCode, skipBrowserAuth)
+    const remoteTransport = await connectToRemoteServer(serverUrl, undefined, waitForAuthCode, skipBrowserAuth)
 
     // Set up bidirectional proxy between local and remote transports
     mcpProxy({
@@ -70,7 +75,7 @@ async function runProxy(serverUrl: string, callbackPort: number, clean: boolean 
     const cleanup = async () => {
       await remoteTransport.close()
       await localTransport.close()
-      server.close()
+      // server.close()
     }
     setupSignalHandlers(cleanup)
   } catch (error) {
@@ -97,17 +102,17 @@ to the CA certificate file. If using claude_desktop_config.json, this might look
 }
         `)
     }
-    server.close()
+    // server.close()
     process.exit(1)
   }
 }
 
-// Parse command-line arguments and run the proxy
-parseCommandLineArgs(process.argv.slice(2), 3334, 'Usage: npx tsx proxy.ts [--clean] <https://server-url> [callback-port]')
-  .then(({ serverUrl, callbackPort, clean }) => {
-    return runProxy(serverUrl, callbackPort, clean)
-  })
-  .catch((error) => {
-    log('Fatal error:', error)
-    process.exit(1)
-  })
+// // Parse command-line arguments and run the proxy
+// parseCommandLineArgs(process.argv.slice(2), 3334, 'Usage: npx tsx proxy.ts [--clean] <https://server-url> [callback-port]')
+//   .then(({ serverUrl, callbackPort, clean }) => {
+//     return runProxy(serverUrl, callbackPort, clean)
+//   })
+//   .catch((error) => {
+//     log('Fatal error:', error)
+//     process.exit(1)
+//   })
